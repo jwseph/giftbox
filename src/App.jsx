@@ -41,21 +41,29 @@ function AdminRoute() {
   )
 }
 
+function GiftRoute() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className='w-full max-w-md space-y-8 flex flex-col items-center'>
+      <div>
+        <h2 className='text-center text-3xl font-bold tracking-tight text-slate-900'>Random Gift Box</h2>
+        <p className='mt-2 text-center text-sm text-slate-600'>click to open</p>
+      </div>
+      <button onClick={() => setOpen(!open)}>
+        <img src={open ? '/giftopen.png' : '/giftclose.png'} className='drop-shadow-sm max-h-screen w-64'/>
+      </button>
+      <button className='w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600'>
+        Open
+      </button>
+    </div>
+  )
+}
+
 function App() {
   return (
     <div className='flex flex-col min-h-full items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-slate-100'>
       <Routes>
-        <Route path='/' element={
-          <div className='w-full max-w-md space-y-8'>
-            <div>
-              <h2 className='text-center text-3xl font-bold tracking-tight text-slate-900'>Random Gift Box</h2>
-              <p className='mt-2 text-center text-sm text-slate-600'>click to open</p>
-            </div>        
-            <button className='w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600'>
-              Open
-            </button>
-          </div>
-        }/>
+        <Route path='/' element={<GiftRoute/>}/>
         <Route path='/admin' element={<AdminRoute/>}/>
       </Routes>
     </div>
