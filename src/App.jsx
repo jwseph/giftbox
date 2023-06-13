@@ -14,7 +14,7 @@ const post = (endpoint, params) => request('POST', endpoint, params);
 function formatDate(ms) {
   // Display UTC milliseconds in local time ex. "Sat, 6/10/2023" 
   let date = new Date(ms);
-  return (''+date).split(' ', 2)[0]+', '+date.toLocaleDateString();
+  return (''+date).split(' ', 2)[0]+' '+date.toLocaleDateString();
 }
 function formatMs(date) {
   // Convert local MM/dd/yyyy to ms
@@ -255,6 +255,10 @@ function EventsRoute({password}) {
     let resp = await get('get_events', {password});
     setEvents(await resp.json());
   }
+  function closeModal() {
+    setEventName('');
+    setOpen(false);
+  }
   async function createEvent() {
     let resp = await post('add_event', {
       password,
@@ -264,7 +268,7 @@ function EventsRoute({password}) {
     });
     if (!resp.ok) return;
     await refreshEvents();
-    setOpen(false);
+    closeModal();
   }
   return (
     <div className='w-full max-w-2xl min-h-full flex flex-col'>
@@ -315,7 +319,6 @@ function EventsRoute({password}) {
               {
                 Object.keys(events).map(function(event_id, index) {
                   let event = events[event_id];
-                  console.log(event);
                   let availableGifts = 0, totalGifts = 0;
                   for (const gift of Object.values(event.gifts)) {
                     if (gift.quantity) availableGifts++;
@@ -331,13 +334,8 @@ function EventsRoute({password}) {
                         <span
                           className="font-semibold text-indigo-600 hover:text-indigo-500 active:text-indigo-500 cursor-pointer select-none"
                           onClick={async () => {
-                            console.log('Deleting...');
                             await post('delete_event', {password, event_id});
                             await refreshEvents();
-                            // let action = data.ready ? 'remove' : 'ready';
-                            // let url = `https://kamiak-io.fly.dev/waitlist/${action}?timestamp=${timestamp}&password=${encodeURIComponent(password)}`;
-                            // await fetch(url, {method: 'POST'})
-                            // await refreshWaitlist();
                           }}
                         >
                           Delete
@@ -398,11 +396,6 @@ function EventsRoute({password}) {
 
                     <form className="mt-6 space-y-6" onSubmit={(e) => {
                       e.preventDefault();
-                      return;
-                      if (first_name.trim() && last_name.trim() && address.trim() && city.trim()
-                        && state.trim() && zip_code.trim() && phone.trim() && email.trim()) {
-                        setConfirming(!confirming);
-                      }
                     }}>
                       <div className="-space-y-px rounded-md shadow-sm">
                         <div>
@@ -424,7 +417,7 @@ function EventsRoute({password}) {
                         <button
                           type="button"
                           className="flex-1 flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600"
-                          onClick={() => setOpen(false)}
+                          onClick={closeModal}
                           ref={cancelButtonRef}
                         >
                           Cancel
