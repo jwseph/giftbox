@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import './App.css'
 import { Route, Link, Routes, useNavigate } from 'react-router-dom'
 import { GoCalendar, GoGift, GoPerson, GoHistory, GoPlus } from 'react-icons/go'
+import { Dialog, Transition } from '@headlessui/react'
 
 function request(method, endpoint, params) {
   let url = 'https://kamiak-io.fly.dev/giftbox/'+endpoint;
@@ -14,6 +15,11 @@ function formatDate(ms) {
   // Display UTC milliseconds in local time ex. "Sat, 6/10/2023" 
   let date = new Date(ms);
   return (''+date).split(' ', 2)[0]+', '+date.toLocaleDateString();
+}
+function formatMs(date) {
+  // Convert local MM/dd/yyyy to ms
+  let parts = date.trim().split('/');
+  return new Date(parts[2], parts[0]-1, parts[1]).getTime();
 }
 
 function SignInPage({onPasswordChange, onSubmit}) {
@@ -91,9 +97,9 @@ function GiftRoute({password, setGift}) {
 
 function GiftWidget({gift}) {
   return (
-    <div className='flex flex-col items-center bg-white shadow-sm ring-1 ring-inset ring-zinc-300 rounded-md overflow-clip'>
+    <div className='flex flex-col items-center bg-white shadow-sm ring-1 ring-inset ring-slate-300 rounded-md overflow-clip'>
       <img src={gift.image} className='w-32 h-32'/>
-      <div className='px-3 py-2 text-sm text-slate-900 font-semibold border-t border-zinc-300 w-full text-center'>{gift.name}</div>
+      <div className='px-3 py-2 text-sm text-slate-900 font-semibold border-t border-slate-300 w-full text-center'>{gift.name}</div>
     </div>
   )
 }
@@ -188,7 +194,7 @@ function ClaimRoute({password, gift}) {
           </div>
           <div>
             {confirming ? (
-              <button className='w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-zinc-900 bg-white hover:bg-zinc-50 shadow-sm ring-1 ring-inset ring-zinc-300 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600'>
+              <button className='w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-slate-900 bg-white hover:bg-slate-50 shadow-sm ring-1 ring-inset ring-slate-300 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600'>
                 Edit info
               </button>
             ) : (
@@ -236,10 +242,11 @@ function FinishedPage({gift}) {
 
 function EventsRoute({password}) {
   const [events, setEvents] = useState({});
-  const [showModal, setShowModal] = useState(false);
   const [eventName, setEventName] = useState('');
   const [eventStart, setEventStart] = useState();
   const [eventEnd, setEventEnd] = useState();
+  const [open, setOpen] = useState(true);
+  const cancelButtonRef = useRef(null);
   useEffect(() => {
     const interval = setInterval(refreshEvents, 1000);
     return () => clearInterval(interval);
@@ -248,34 +255,46 @@ function EventsRoute({password}) {
     let resp = await get('get_events', {password});
     setEvents(await resp.json());
   }
+  async function createEvent() {
+    let resp = await post('add_event', {
+      password,
+      event_name: eventName,
+      event_start_ms: formatMs(eventStart),
+      event_end_ms: formatMs(eventEnd)+24*60*60*1000,  // daylight savings oof
+    });
+    if (!resp.ok) return;
+    await refreshEvents();
+    setOpen(false);
+  }
   return (
     <div className='w-full max-w-2xl min-h-full flex flex-col'>
       <div>
         <h3 className='text-left text-2xl font-bold tracking-tight text-slate-900 py-2'>Random Gift Box Manager</h3>
       </div>
-      <div className='border-b border-zinc-200'>
+      <div className='border-b border-slate-200'>
         <nav className='flex -mb-px space-x-8'>
           <Link to='/manager/events' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-indigo-600 font-medium border-b-2 border-indigo-500 whitespace-nowrap'>
             <GoCalendar className='w-5 h-5'/>
             <div>Events</div>
           </Link>
-          <Link to='/manager/gifts' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-zinc-500 hover:text-zinc-700 font-medium border-transparent border-b-2 hover:border-zinc-300 whitespace-nowrap'>
-            <GoGift className='w-5 h-5 text-zinc-400 group-hover:text-zinc-500'/>
+          <Link to='/manager/gifts' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoGift className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
             <div>Gifts</div>
           </Link>
-          <Link to='/manager/claims' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-zinc-500 hover:text-zinc-700 font-medium border-transparent border-b-2 hover:border-zinc-300 whitespace-nowrap'>
-            <GoPerson className='w-5 h-5 text-zinc-400 group-hover:text-zinc-500'/>
+          <Link to='/manager/claims' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoPerson className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
             <div>Claims</div>
           </Link>
-          <Link to='/manager/history' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-zinc-500 hover:text-zinc-700 font-medium border-transparent border-b-2 hover:border-zinc-300 whitespace-nowrap'>
-            <GoHistory className='w-5 h-5 text-zinc-400 group-hover:text-zinc-500'/>
+          <Link to='/manager/history' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoHistory className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
             <div>History</div>
           </Link>
         </nav>
       </div>
       <div className='w-full space-y-8 flex-1 inline-flex flex-col justify-center py-12 sm:py-6'>
+
         <div>
-          <button onClick={() => setShowModal(true)} className="flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
+          <button onClick={() => setOpen(true)} className="flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
             <GoPlus className='w-5 h-5'/>
             <div>New event</div>
           </button>
@@ -313,6 +332,8 @@ function EventsRoute({password}) {
                           className="font-semibold text-indigo-600 hover:text-indigo-500 active:text-indigo-500 cursor-pointer select-none"
                           onClick={async () => {
                             console.log('Deleting...');
+                            await post('delete_event', {password, event_id});
+                            await refreshEvents();
                             // let action = data.ready ? 'remove' : 'ready';
                             // let url = `https://kamiak-io.fly.dev/waitlist/${action}?timestamp=${timestamp}&password=${encodeURIComponent(password)}`;
                             // await fetch(url, {method: 'POST'})
@@ -342,51 +363,88 @@ function EventsRoute({password}) {
       </div>
 
 
-      {showModal && (
-        <div className='absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm'>
-          <button className='absolute top-0 left-0 right-0 bottom-0 -z-10 cursor-default' onClick={() => setShowModal(false)}></button>
-          <div className='w-full max-w-md px-8 py-8 bg-white rounded-lg shadow-xl'>
+      <Transition.Root show={open} as={Fragment}>
+        <Dialog as="div" className="relative z-10" initialFocus={cancelButtonRef} onClose={setOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity" />
+          </Transition.Child>
 
-            <h3 className='text-center text-2xl font-bold tracking-tight text-slate-900'>New event</h3>
-            <p className='mt-2 text-center text-sm text-slate-600'>Enter an event name and a date range (inclusive)</p>
+          <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              >
+                <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+          
+                  <div className='bg-white px-6 py-6'>
 
-
-            <form className="mt-6 space-y-6" onSubmit={(e) => {
-              e.preventDefault();
-              return;
-              if (first_name.trim() && last_name.trim() && address.trim() && city.trim()
-                && state.trim() && zip_code.trim() && phone.trim() && email.trim()) {
-                setConfirming(!confirming);
-              }
-            }}>
-              <div className="-space-y-px rounded-md shadow-sm">
-                <div>
-                  <label htmlFor="eventName" className="sr-only">Event name</label>
-                  <input onChange={e => setEventName(e.target.value)} id="eventName" name="eventName" type="text" autoComplete="off" placeholder='Event name' className="relative block w-full rounded-t-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
-                </div>
-                <div>
-                  <label htmlFor="eventStart" className="sr-only">Start date</label>
-                  <input onChange={e => setEventStart(e.target.value)} id="eventStart" name="eventStart" type="text" autoComplete="off" placeholder='Start date (MM/dd/yyyy)' className="relative block w-full border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
-                </div>
-                <div>
-                  <label htmlFor="eventEnd" className="sr-only">End date</label>
-                  <input onChange={e => setEventEnd(e.target.value)} id="eventEnd" name="eventEnd" type="text" autoComplete="off" placeholder='End date (MM/dd/yyyy)' className="relative block w-full rounded-b-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
-                </div>
-              </div>
-              <div>
-
-              <button onClick={() => setShowModal(false)} className="flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
-                Create!
-              </button>
+                    <h3 className='text-center text-base font-semibold text-slate-900'>New event</h3>
+                    <p className='mt-2 text-center text-sm text-slate-500'>Enter an event name and a date range (inclusive)</p>
 
 
-              </div>
-            </form>
+                    <form className="mt-6 space-y-6" onSubmit={(e) => {
+                      e.preventDefault();
+                      return;
+                      if (first_name.trim() && last_name.trim() && address.trim() && city.trim()
+                        && state.trim() && zip_code.trim() && phone.trim() && email.trim()) {
+                        setConfirming(!confirming);
+                      }
+                    }}>
+                      <div className="-space-y-px rounded-md shadow-sm">
+                        <div>
+                          <label htmlFor="eventName" className="sr-only">Event name</label>
+                          <input onChange={e => setEventName(e.target.value)} id="eventName" name="eventName" type="text" autoComplete="off" placeholder='Event name' className="relative block w-full rounded-t-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                        </div>
+                        <div>
+                          <label htmlFor="eventStart" className="sr-only">Start date</label>
+                          <input onChange={e => setEventStart(e.target.value)} id="eventStart" name="eventStart" type="text" autoComplete="off" placeholder='Start date (MM/dd/yyyy)' className="relative block w-full border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                        </div>
+                        <div>
+                          <label htmlFor="eventEnd" className="sr-only">End date</label>
+                          <input onChange={e => setEventEnd(e.target.value)} id="eventEnd" name="eventEnd" type="text" autoComplete="off" placeholder='End date (MM/dd/yyyy)' className="relative block w-full rounded-b-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                        </div>
+                      </div>
+                      <div>
+
+                      <div className='flex flex-row gap-3'>
+                        <button
+                          type="button"
+                          className="flex-1 flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600"
+                          onClick={() => setOpen(false)}
+                          ref={cancelButtonRef}
+                        >
+                          Cancel
+                        </button>
+                        <button onClick={createEvent} className="flex-1 flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
+                          Create
+                        </button>
+                      </div>
 
 
+                      </div>
+                    </form>
+
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
           </div>
-        </div>
-      )}
+        </Dialog>
+      </Transition.Root>
     </div>
   )
 }
