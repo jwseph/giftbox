@@ -2,7 +2,12 @@ import { useState, useEffect, useRef, Fragment } from 'react'
 import './App.css'
 import { Route, Link, Routes, useNavigate } from 'react-router-dom'
 import { GoCalendar, GoGift, GoPerson, GoHistory, GoPlus } from 'react-icons/go'
-import { Dialog, Transition } from '@headlessui/react'
+import { Dialog, Transition, Listbox } from '@headlessui/react'
+import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
+
+function classNames(...classes) {
+  return classes.filter(Boolean).join(' ')
+}
 
 function request(method, endpoint, params) {
   let url = 'https://kamiak-io.fly.dev/giftbox/'+endpoint;
@@ -245,7 +250,7 @@ function EventsRoute({password}) {
   const [eventName, setEventName] = useState('');
   const [eventStart, setEventStart] = useState();
   const [eventEnd, setEventEnd] = useState();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const cancelButtonRef = useRef(null);
   useEffect(() => {
     const interval = setInterval(refreshEvents, 1000);
@@ -347,8 +352,8 @@ function EventsRoute({password}) {
               }
               {Object.keys(events).length == 0 && (
                 <tr className="border-b border-slate-200 last:border-b-0">
-                  <td></td>
                   <td className="py-4 text-slate-600 text-center">No events available</td>
+                  <td></td>
                   <td></td>
                   <td></td>
                   <td></td>
@@ -442,7 +447,338 @@ function EventsRoute({password}) {
   )
 }
 
-function App() {
+const people = [
+  {
+    id: 1,
+    name: 'Wade Cooper',
+    avatar:
+      'https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 2,
+    name: 'Arlene Mccoy',
+    avatar:
+      'https://images.unsplash.com/photo-1550525811-e5869dd03032?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 3,
+    name: 'Devon Webb',
+    avatar:
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2.25&w=256&h=256&q=80',
+  },
+  {
+    id: 4,
+    name: 'Tom Cook',
+    avatar:
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 5,
+    name: 'Tanya Fox',
+    avatar:
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 6,
+    name: 'Hellen Schmidt',
+    avatar:
+      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 7,
+    name: 'Caroline Schultz',
+    avatar:
+      'https://images.unsplash.com/photo-1568409938619-12e139227838?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 8,
+    name: 'Mason Heaney',
+    avatar:
+      'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 9,
+    name: 'Claudie Smitham',
+    avatar:
+      'https://images.unsplash.com/photo-1584486520270-19eca1efcce5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 10,
+    name: 'Emil Schaefer',
+    avatar:
+      'https://images.unsplash.com/photo-1561505457-3bcad021f8ee?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+]
+
+function GiftsRoute({password}) {
+  const [events, setEvents] = useState({});
+  const [selected, setSelected] = useState(0);
+  const [giftName, setGiftName] = useState('');
+  const [giftQuantity, setGiftQuantity] = useState();
+  const [open, setOpen] = useState(false);
+  const cancelButtonRef = useRef(null);
+  useEffect(() => {
+    const interval = setInterval(refreshEvents, 1000);
+    return () => clearInterval(interval);
+  }, [])
+  async function refreshEvents() {
+    let resp = await get('get_events', {password});
+    setEvents(await resp.json());
+  }
+  function closeModal() {
+    setGiftName('');
+    setOpen(false);
+  }
+  async function createEvent() {
+    let resp = await post('add_event', {
+      password,
+      event_name: eventName,
+      event_start_ms: formatMs(eventStart),
+      event_end_ms: formatMs(eventEnd)+24*60*60*1000,  // daylight savings oof
+    });
+    if (!resp.ok) return;
+    await refreshEvents();
+    closeModal();
+  }
+  return (
+    <div className='w-full max-w-2xl min-h-full flex flex-col'>
+      <div>
+        <h3 className='text-left text-2xl font-bold tracking-tight text-slate-900 py-2'>Random Gift Box Manager</h3>
+      </div>
+      <div className='border-b border-slate-200'>
+        <nav className='flex -mb-px space-x-8'>
+          <Link to='/manager/events' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoCalendar className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>Events</div>
+          </Link>
+          <Link to='/manager/gifts' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-indigo-600 font-medium border-b-2 border-indigo-500 whitespace-nowrap'>
+            <GoGift className='w-5 h-5'/>
+            <div>Gifts</div>
+          </Link>
+          <Link to='/manager/claims' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoPerson className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>Claims</div>
+          </Link>
+          <Link to='/manager/history' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoHistory className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>History</div>
+          </Link>
+        </nav>
+      </div>
+      <div className='w-full space-y-8 flex-1 inline-flex flex-col justify-center py-12 sm:py-6'>
+
+        <Listbox value={people[selected]} onChange={(person) => setSelected(people.indexOf(person))}>
+          {({ open }) => (
+            <>
+              <Listbox.Label className="block text-sm font-medium leading-6 text-gray-900">Assigned to</Listbox.Label>
+              <div className="relative mt-2">
+                <Listbox.Button className="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6">
+                  <span className="flex items-center">
+                    <img src={people[selected].avatar} alt="" className="h-5 w-5 flex-shrink-0 rounded-full" />
+                    <span className="ml-3 block truncate">{people[selected].name}</span>
+                  </span>
+                  <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                    <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                  </span>
+                </Listbox.Button>
+
+                <Transition
+                  show={open}
+                  as={Fragment}
+                  leave="transition ease-in duration-100"
+                  leaveFrom="opacity-100"
+                  leaveTo="opacity-0"
+                >
+                  <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                    {people.map((person) => (
+                      <Listbox.Option
+                        key={person.id}
+                        className={({ active }) =>
+                          classNames(
+                            active ? 'bg-indigo-600 text-white' : 'text-gray-900',
+                            'relative cursor-default select-none py-2 pl-3 pr-9'
+                          )
+                        }
+                        value={person}
+                      >
+                        {({ selected, active }) => (
+                          <>
+                            <div className="flex items-center">
+                              <img src={person.avatar} alt="" className="h-5 w-5 flex-shrink-0 rounded-full" />
+                              <span
+                                className={classNames(selected ? 'font-semibold' : 'font-normal', 'ml-3 block truncate')}
+                              >
+                                {person.name}
+                              </span>
+                            </div>
+
+                            {selected ? (
+                              <span
+                                className={classNames(
+                                  active ? 'text-white' : 'text-indigo-600',
+                                  'absolute inset-y-0 right-0 flex items-center pr-4'
+                                )}
+                              >
+                                <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                              </span>
+                            ) : null}
+                          </>
+                        )}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </Transition>
+              </div>
+            </>
+          )}
+        </Listbox>
+
+        <div>
+          <button onClick={() => setOpen(true)} className="flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
+            <GoPlus className='w-5 h-5'/>
+            <div>Add gift</div>
+          </button>
+        </div>
+
+        <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
+          <table className="table-fixed bg-white text-sm w-full">
+            <thead>
+              <tr className="border-b border-slate-300 bg-slate-50 rounded-tl-lg">
+                <th className="text-left py-4 px-6 w-3/12">Event name</th>
+                <th className="text-left py-4 pr-6 w-3/12">Start date</th>
+                <th className="text-left py-4 pr-6 w-3/12">End date</th>
+                <th className="text-left py-4 pr-6 w-1/12">Gifts</th>
+                <th className="text-left py-4 pr-6 w-2/12"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                Object.keys(events).map(function(event_id, index) {
+                  let event = events[event_id];
+                  let availableGifts = 0, totalGifts = 0;
+                  for (const gift of Object.values(event.gifts)) {
+                    if (gift.quantity) availableGifts++;
+                    totalGifts++;
+                  }
+                  return (
+                    <tr className="border-b border-slate-200 last:border-b-0" key={index}>
+                      <td className="py-4 px-6 font-semibold truncate">{event.name}</td>
+                      <td className="py-4 pr-6 text-slate-600">{formatDate(event.start_ms)}</td>
+                      <td className="py-4 pr-6 text-slate-600">{formatDate(event.end_ms)}</td>
+                      <td className="py-4 pr-6 text-slate-600">{availableGifts+' / '+totalGifts}</td>
+                      <td className="py-4 pr-6 text-slate-600 text-right">
+                        <span
+                          className="font-semibold text-indigo-600 hover:text-indigo-500 active:text-indigo-500 cursor-pointer select-none"
+                          onClick={async () => {
+                            await post('delete_event', {password, event_id});
+                            await refreshEvents();
+                          }}
+                        >
+                          Delete
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })
+              }
+              {Object.keys(events).length == 0 && (
+                <tr className="border-b border-slate-200 last:border-b-0">
+                  <td className="py-4 text-slate-600 text-center">No gifts available</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+
+      <Transition.Root show={open} as={Fragment}>
+        <Dialog as="div" className="relative z-10" initialFocus={cancelButtonRef} onClose={setOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              >
+                <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+          
+                  <div className='bg-white px-6 py-6'>
+
+                    <h3 className='text-center text-base font-semibold text-slate-900'>Add gift</h3>
+                    <p className='mt-2 text-center text-sm text-slate-500'>Enter an event name and a date range (inclusive)</p>
+
+
+                    <form className="mt-6 space-y-6" onSubmit={(e) => {
+                      e.preventDefault();
+                    }}>
+                      <div className="-space-y-px rounded-md shadow-sm">
+                        <div>
+                          <label htmlFor="eventName" className="sr-only">Event name</label>
+                          <input onChange={e => setEventName(e.target.value)} id="eventName" name="eventName" type="text" autoComplete="off" placeholder='Event name' className="relative block w-full rounded-t-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                        </div>
+                        <div>
+                          <label htmlFor="eventStart" className="sr-only">Start date</label>
+                          <input onChange={e => setEventStart(e.target.value)} id="eventStart" name="eventStart" type="text" autoComplete="off" placeholder='Start date (MM/dd/yyyy)' className="relative block w-full border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                        </div>
+                        <div>
+                          <label htmlFor="eventEnd" className="sr-only">End date</label>
+                          <input onChange={e => setEventEnd(e.target.value)} id="eventEnd" name="eventEnd" type="text" autoComplete="off" placeholder='End date (MM/dd/yyyy)' className="relative block w-full rounded-b-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                        </div>
+                      </div>
+                      <div>
+
+                      <div className='flex flex-row gap-3'>
+                        <button
+                          type="button"
+                          className="flex-1 flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600"
+                          onClick={closeModal}
+                          ref={cancelButtonRef}
+                        >
+                          Cancel
+                        </button>
+                        <button onClick={createEvent} className="flex-1 flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
+                          Create
+                        </button>
+                      </div>
+
+
+                      </div>
+                    </form>
+
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition.Root>
+    </div>
+  )
+}
+
+export default function App() {
   const [password, setPassword] = useState('');
   const [signedIn, setSignedIn] = useState(false);
   const [gift, setGift] = useState();
@@ -461,6 +797,7 @@ function App() {
           <Route path='/' element={<GiftRoute password={password} setGift={setGift}/>}/>
           <Route path='/manager' element={<EventsRoute password={password}/>}/>
           <Route path='/manager/events' element={<EventsRoute password={password}/>}/>
+          <Route path='/manager/gifts' element={<GiftsRoute password={password}/>}/>
           <Route path='/claim' element={<ClaimRoute password={password} gift={gift}/>}/>
           <Route path='/finished' element={<FinishedPage gift={gift}/>}/>
         </Routes>
@@ -468,5 +805,3 @@ function App() {
     </div>
   )
 }
-
-export default App
