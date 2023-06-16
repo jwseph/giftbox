@@ -340,6 +340,9 @@ function EventsRoute({password}) {
                           className="font-semibold text-indigo-600 hover:text-indigo-500 active:text-indigo-500 cursor-pointer select-none"
                           onClick={async () => {
                             await post('delete_event', {password, event_id});
+                            delete events[event_id];
+                            setEvents({...events});
+                            setSelected(null);
                             await refreshEvents();
                           }}
                         >
@@ -352,7 +355,7 @@ function EventsRoute({password}) {
               }
               {Object.keys(events).length == 0 && (
                 <tr className="border-b border-slate-200 last:border-b-0">
-                  <td className="py-4 text-slate-600 text-center">No events available</td>
+                  <td className="py-4 pl-6 text-slate-600 text-left">No events available</td>
                   <td></td>
                   <td></td>
                   <td></td>
@@ -447,74 +450,13 @@ function EventsRoute({password}) {
   )
 }
 
-const people = [
-  {
-    id: 1,
-    name: 'Wade Cooper',
-    avatar:
-      'https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 2,
-    name: 'Arlene Mccoy',
-    avatar:
-      'https://images.unsplash.com/photo-1550525811-e5869dd03032?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 3,
-    name: 'Devon Webb',
-    avatar:
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2.25&w=256&h=256&q=80',
-  },
-  {
-    id: 4,
-    name: 'Tom Cook',
-    avatar:
-      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 5,
-    name: 'Tanya Fox',
-    avatar:
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 6,
-    name: 'Hellen Schmidt',
-    avatar:
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 7,
-    name: 'Caroline Schultz',
-    avatar:
-      'https://images.unsplash.com/photo-1568409938619-12e139227838?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 8,
-    name: 'Mason Heaney',
-    avatar:
-      'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 9,
-    name: 'Claudie Smitham',
-    avatar:
-      'https://images.unsplash.com/photo-1584486520270-19eca1efcce5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 10,
-    name: 'Emil Schaefer',
-    avatar:
-      'https://images.unsplash.com/photo-1561505457-3bcad021f8ee?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-]
-
 function GiftsRoute({password}) {
   const [events, setEvents] = useState({});
-  const [selected, setSelected] = useState(0);
-  const [giftName, setGiftName] = useState('');
-  const [giftQuantity, setGiftQuantity] = useState();
+  const [selected, setSelected] = useState();
+  const [gift_name, setGiftName] = useState('');
+  const [gift_image, setGiftImage] = useState();
+  const [gift_points, setGiftPoints] = useState(0);
+  const [gift_quantity, setGiftQuantity] = useState(0);
   const [open, setOpen] = useState(false);
   const cancelButtonRef = useRef(null);
   useEffect(() => {
@@ -523,18 +465,25 @@ function GiftsRoute({password}) {
   }, [])
   async function refreshEvents() {
     let resp = await get('get_events', {password});
-    setEvents(await resp.json());
+    const res = await resp.json();
+    for (let eventId in res) {
+      res[eventId].id = eventId;
+    }
+    setEvents(res);
+    console.log(Object.keys(res)[0]);
+    if (!selected) setSelected(Object.keys(res)[0]);
   }
   function closeModal() {
     setGiftName('');
     setOpen(false);
   }
-  async function createEvent() {
-    let resp = await post('add_event', {
+  async function createGift() {
+    let resp = await post('add_gift', {
       password,
-      event_name: eventName,
-      event_start_ms: formatMs(eventStart),
-      event_end_ms: formatMs(eventEnd)+24*60*60*1000,  // daylight savings oof
+      gift_name,
+      gift_image,
+      gift_points,
+      gift_quantity,
     });
     if (!resp.ok) return;
     await refreshEvents();
@@ -565,134 +514,157 @@ function GiftsRoute({password}) {
           </Link>
         </nav>
       </div>
+      
       <div className='w-full space-y-8 flex-1 inline-flex flex-col justify-center py-12 sm:py-6'>
-
-        <Listbox value={people[selected]} onChange={(person) => setSelected(people.indexOf(person))}>
-          {({ open }) => (
-            <>
-              <Listbox.Label className="block text-sm font-medium leading-6 text-gray-900">Assigned to</Listbox.Label>
-              <div className="relative mt-2">
-                <Listbox.Button className="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6">
-                  <span className="flex items-center">
-                    <img src={people[selected].avatar} alt="" className="h-5 w-5 flex-shrink-0 rounded-full" />
-                    <span className="ml-3 block truncate">{people[selected].name}</span>
-                  </span>
-                  <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
-                    <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                  </span>
-                </Listbox.Button>
-
-                <Transition
-                  show={open}
-                  as={Fragment}
-                  leave="transition ease-in duration-100"
-                  leaveFrom="opacity-100"
-                  leaveTo="opacity-0"
-                >
-                  <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                    {people.map((person) => (
-                      <Listbox.Option
-                        key={person.id}
-                        className={({ active }) =>
-                          classNames(
-                            active ? 'bg-indigo-600 text-white' : 'text-gray-900',
-                            'relative cursor-default select-none py-2 pl-3 pr-9'
-                          )
-                        }
-                        value={person}
-                      >
-                        {({ selected, active }) => (
-                          <>
-                            <div className="flex items-center">
-                              <img src={person.avatar} alt="" className="h-5 w-5 flex-shrink-0 rounded-full" />
-                              <span
-                                className={classNames(selected ? 'font-semibold' : 'font-normal', 'ml-3 block truncate')}
-                              >
-                                {person.name}
-                              </span>
-                            </div>
-
-                            {selected ? (
-                              <span
-                                className={classNames(
-                                  active ? 'text-white' : 'text-indigo-600',
-                                  'absolute inset-y-0 right-0 flex items-center pr-4'
-                                )}
-                              >
-                                <CheckIcon className="h-5 w-5" aria-hidden="true" />
-                              </span>
-                            ) : null}
-                          </>
-                        )}
-                      </Listbox.Option>
-                    ))}
-                  </Listbox.Options>
-                </Transition>
-              </div>
-            </>
-          )}
-        </Listbox>
-
-        <div>
-          <button onClick={() => setOpen(true)} className="flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
-            <GoPlus className='w-5 h-5'/>
-            <div>Add gift</div>
-          </button>
-        </div>
-
-        <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
-          <table className="table-fixed bg-white text-sm w-full">
-            <thead>
-              <tr className="border-b border-slate-300 bg-slate-50 rounded-tl-lg">
-                <th className="text-left py-4 px-6 w-3/12">Event name</th>
-                <th className="text-left py-4 pr-6 w-3/12">Start date</th>
-                <th className="text-left py-4 pr-6 w-3/12">End date</th>
-                <th className="text-left py-4 pr-6 w-1/12">Gifts</th>
-                <th className="text-left py-4 pr-6 w-2/12"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {
-                Object.keys(events).map(function(event_id, index) {
-                  let event = events[event_id];
-                  let availableGifts = 0, totalGifts = 0;
-                  for (const gift of Object.values(event.gifts)) {
-                    if (gift.quantity) availableGifts++;
-                    totalGifts++;
-                  }
-                  return (
-                    <tr className="border-b border-slate-200 last:border-b-0" key={index}>
-                      <td className="py-4 px-6 font-semibold truncate">{event.name}</td>
-                      <td className="py-4 pr-6 text-slate-600">{formatDate(event.start_ms)}</td>
-                      <td className="py-4 pr-6 text-slate-600">{formatDate(event.end_ms)}</td>
-                      <td className="py-4 pr-6 text-slate-600">{availableGifts+' / '+totalGifts}</td>
-                      <td className="py-4 pr-6 text-slate-600 text-right">
-                        <span
-                          className="font-semibold text-indigo-600 hover:text-indigo-500 active:text-indigo-500 cursor-pointer select-none"
-                          onClick={async () => {
-                            await post('delete_event', {password, event_id});
-                            await refreshEvents();
-                          }}
-                        >
-                          Delete
+        {selected && (
+          <div className='space-y-4'>
+            <div>
+              <Listbox value={events[selected]} onChange={(event) => setSelected(event.id)}>
+                {({ open }) => (
+                  <>
+                    <Listbox.Label className="block text-sm font-medium leading-6 text-gray-900">Selected event:</Listbox.Label>
+                    <div className="relative mt-2">
+                      <Listbox.Button className="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6">
+                        <span className="block truncate">{`${events[selected].name} (${formatDate(events[selected].start_ms)} - ${formatDate(events[selected].end_ms)})`}</span>
+                        <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                          <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
                         </span>
-                      </td>
-                    </tr>
-                  )
-                })
-              }
-              {Object.keys(events).length == 0 && (
+                      </Listbox.Button>
+
+                      <Transition
+                        show={open}
+                        as={Fragment}
+                        leave="transition ease-in duration-100"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                      >
+                        <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                          {Object.keys(events).map((eventId) => (
+                            <Listbox.Option
+                              key={eventId}
+                              className={({active}) =>
+                                classNames(
+                                  active ? 'bg-indigo-600 text-white' : 'text-gray-900',
+                                  'relative cursor-default select-none py-2 pl-3 pr-9'
+                                )
+                              }
+                              value={events[eventId]}
+                            >
+                              {({ selected, active }) => (
+                                <>
+                                  <div className="flex items-center">
+                                    <span
+                                      className={classNames(selected ? 'font-semibold' : 'font-normal', 'block truncate')}
+                                    >
+                                      {`${events[eventId].name} (${formatDate(events[eventId].start_ms)} - ${formatDate(events[eventId].end_ms)})`}
+                                    </span>
+                                  </div>
+
+                                  {selected && (
+                                    <span
+                                      className={classNames(
+                                        active ? 'text-white' : 'text-indigo-600',
+                                        'absolute inset-y-0 right-0 flex items-center pr-4'
+                                      )}
+                                    >
+                                      <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </Listbox.Option>
+                          ))}
+                        </Listbox.Options>
+                      </Transition>
+                    </div>
+                  </>
+                )}
+              </Listbox>
+            </div>
+
+            <div>
+              <button onClick={() => setOpen(true)} className="flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
+                <GoPlus className='w-5 h-5'/>
+                <div>Add gift</div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {selected ? (
+          <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
+            <table className="table-fixed bg-white text-sm w-full">
+              <thead>
+                <tr className="border-b border-slate-300 bg-slate-50 rounded-tl-lg">
+                  <th className="text-left py-4 px-6 w-6/12">Gift</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Points</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Quantity</th>
+                  <th className="text-left py-4 pr-6 w-2/12"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  Object.keys(events[selected].gifts).map(function(gift_id, index) {
+                    let gift = events[selected].gifts[gift_id];
+                    return (
+                      <tr className="border-b border-slate-200 last:border-b-0" key={index}>
+                        <td className="py-4 px-6 font-semibold truncate">
+                          <div className='flex items-center gap-4'>
+                            <img src={gift.image} className='aspect-square h-6'/>
+                            <span>{gift.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 pr-6 text-slate-600">{gift.points}</td>
+                        <td className="py-4 pr-6 text-slate-600">{gift.quantity}</td>
+                        <td className="py-4 pr-6 text-slate-600 text-right">
+                          <span
+                            className="font-semibold text-indigo-600 hover:text-indigo-500 active:text-indigo-500 cursor-pointer select-none"
+                            onClick={async () => {
+                              await post('delete_event', {password, event_id: selected, gift_id});
+                              await refreshEvents();
+                            }}
+                          >
+                            Delete
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })
+                }
+                {Object.keys(events).length == 0 && (
+                  <tr className="border-b border-slate-200 last:border-b-0">
+                    <td className="py-4 pl-6 text-slate-600 text-left">No gifts available</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
+            <table className="table-fixed bg-white text-sm w-full">
+              <thead>
+                <tr className="border-b border-slate-300 bg-slate-50 rounded-tl-lg">
+                  <th className="text-left py-4 px-6 w-6/12">Gift</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Points</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Quantity</th>
+                  <th className="text-left py-4 pr-6 w-2/12"></th>
+                </tr>
+              </thead>
+              <tbody>
                 <tr className="border-b border-slate-200 last:border-b-0">
-                  <td className="py-4 text-slate-600 text-center">No gifts available</td>
+                  <td className="py-4 pl-6 text-slate-600 text-left">No gifts available</td>
                   <td></td>
                   <td></td>
                   <td></td>
                   <td></td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        )}
 
       </div>
 
@@ -727,7 +699,7 @@ function GiftsRoute({password}) {
                   <div className='bg-white px-6 py-6'>
 
                     <h3 className='text-center text-base font-semibold text-slate-900'>Add gift</h3>
-                    <p className='mt-2 text-center text-sm text-slate-500'>Enter an event name and a date range (inclusive)</p>
+                    <p className='mt-2 text-center text-sm text-slate-500'>Enter the gift's name, image url, and quantity</p>
 
 
                     <form className="mt-6 space-y-6" onSubmit={(e) => {
@@ -735,16 +707,20 @@ function GiftsRoute({password}) {
                     }}>
                       <div className="-space-y-px rounded-md shadow-sm">
                         <div>
-                          <label htmlFor="eventName" className="sr-only">Event name</label>
-                          <input onChange={e => setEventName(e.target.value)} id="eventName" name="eventName" type="text" autoComplete="off" placeholder='Event name' className="relative block w-full rounded-t-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                          <label htmlFor="giftName" className="sr-only">Gift name</label>
+                          <input onChange={e => setGiftName(e.target.value)} id="giftName" name="giftName" type="text" autoComplete="off" placeholder='Gift name' className="relative block w-full rounded-t-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
                         </div>
                         <div>
-                          <label htmlFor="eventStart" className="sr-only">Start date</label>
-                          <input onChange={e => setEventStart(e.target.value)} id="eventStart" name="eventStart" type="text" autoComplete="off" placeholder='Start date (MM/dd/yyyy)' className="relative block w-full border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                          <label htmlFor="giftImage" className="sr-only">Gift image url</label>
+                          <input onChange={e => setGiftImage(e.target.value)} id="giftImage" name="giftImage" type="text" autoComplete="off" placeholder='Gift image url' className="relative block w-full border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
                         </div>
                         <div>
-                          <label htmlFor="eventEnd" className="sr-only">End date</label>
-                          <input onChange={e => setEventEnd(e.target.value)} id="eventEnd" name="eventEnd" type="text" autoComplete="off" placeholder='End date (MM/dd/yyyy)' className="relative block w-full rounded-b-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                          <label htmlFor="giftPoints" className="sr-only">Gift points (relative probability)</label>
+                          <input onChange={e => setGiftPoints(+e.target.value)} id="giftPoints" name="giftPoints" type="text" autoComplete="off" placeholder='Gift points (relative probability)' className="relative block w-full rounded-b-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
+                        </div>
+                        <div>
+                          <label htmlFor="giftQuantity" className="sr-only">Gift quantity</label>
+                          <input onChange={e => setGiftQuantity(+e.target.value)} id="giftQuantity" name="giftQuantity" type="text" autoComplete="off" placeholder='Gift quantity' className="relative block w-full rounded-b-md border-0 py-1.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3 disabled:text-slate-700"/>
                         </div>
                       </div>
                       <div>
@@ -758,7 +734,7 @@ function GiftsRoute({password}) {
                         >
                           Cancel
                         </button>
-                        <button onClick={createEvent} className="flex-1 flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
+                        <button onClick={createGift} className="flex-1 flex flex-row justify-center gap-1.5 w-full rounded-md py-2 px-3 text-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus-visible:outline outline-2 outline-offset-2 outline-indigo-600">
                           Create
                         </button>
                       </div>
