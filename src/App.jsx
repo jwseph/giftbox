@@ -471,7 +471,7 @@ function GiftsRoute({password}) {
     }
     setEvents(res);
     console.log(Object.keys(res)[0]);
-    if (!selected) setSelected(Object.keys(res)[0]);
+    if (!selected) setSelected(Object.keys(res)[0].id);
   }
   function closeModal() {
     setGiftName('');
