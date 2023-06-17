@@ -253,6 +253,7 @@ function EventsRoute({password}) {
   const [open, setOpen] = useState(false);
   const cancelButtonRef = useRef(null);
   useEffect(() => {
+    refreshEvents();
     const interval = setInterval(refreshEvents, 1000);
     return () => clearInterval(interval);
   }, [])
@@ -269,14 +270,14 @@ function EventsRoute({password}) {
       password,
       event_name: eventName,
       event_start_ms: formatMs(eventStart),
-      event_end_ms: formatMs(eventEnd)+24*60*60*1000,  // daylight savings oof
+      event_end_ms: formatMs(eventEnd),
     });
     if (!resp.ok) return;
     await refreshEvents();
     closeModal();
   }
   return (
-    <div className='w-full max-w-2xl min-h-full flex flex-col'>
+    <div className='w-full max-w-4xl min-h-full flex flex-col'>
       <div>
         <h3 className='text-left text-2xl font-bold tracking-tight text-slate-900 py-2'>Random Gift Box Manager</h3>
       </div>
@@ -294,9 +295,9 @@ function EventsRoute({password}) {
             <GoPerson className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
             <div>Claims</div>
           </Link>
-          <Link to='/manager/history' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+          <Link to='/manager/report' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
             <GoHistory className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
-            <div>History</div>
+            <div>Report</div>
           </Link>
         </nav>
       </div>
@@ -399,7 +400,7 @@ function EventsRoute({password}) {
                   <div className='bg-white px-6 py-6'>
 
                     <h3 className='text-center text-base font-semibold text-slate-900'>New event</h3>
-                    <p className='mt-2 text-center text-sm text-slate-500'>Enter an event name and a date range (inclusive)</p>
+                    <p className='mt-2 text-center text-sm text-slate-500'>Enter an event name and a date range [start, end)</p>
 
 
                     <form className="mt-6 space-y-6" onSubmit={(e) => {
@@ -452,7 +453,7 @@ function EventsRoute({password}) {
 
 function GiftsRoute({password}) {
   const [events, setEvents] = useState({});
-  const [selected, setSelected] = useState();
+  const [selected, setSelected] = useState(null);
   const [gift_name, setGiftName] = useState('');
   const [gift_image, setGiftImage] = useState();
   const [gift_points, setGiftPoints] = useState(0);
@@ -460,18 +461,18 @@ function GiftsRoute({password}) {
   const [open, setOpen] = useState(false);
   const cancelButtonRef = useRef(null);
   useEffect(() => {
+    refreshEvents();
     const interval = setInterval(refreshEvents, 1000);
     return () => clearInterval(interval);
-  }, [])
+  }, [events, selected])
   async function refreshEvents() {
     let resp = await get('get_events', {password});
     const res = await resp.json();
     for (let eventId in res) {
       res[eventId].id = eventId;
     }
+    if (!selected) setSelected(Object.keys(res)[0]);
     setEvents(res);
-    console.log(Object.keys(res)[0]);
-    if (!selected) setSelected(Object.keys(res)[0].id);
   }
   function closeModal() {
     setGiftName('');
@@ -480,6 +481,7 @@ function GiftsRoute({password}) {
   async function createGift() {
     let resp = await post('add_gift', {
       password,
+      event_id: selected,
       gift_name,
       gift_image,
       gift_points,
@@ -490,7 +492,7 @@ function GiftsRoute({password}) {
     closeModal();
   }
   return (
-    <div className='w-full max-w-2xl min-h-full flex flex-col'>
+    <div className='w-full max-w-4xl min-h-full flex flex-col'>
       <div>
         <h3 className='text-left text-2xl font-bold tracking-tight text-slate-900 py-2'>Random Gift Box Manager</h3>
       </div>
@@ -508,9 +510,9 @@ function GiftsRoute({password}) {
             <GoPerson className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
             <div>Claims</div>
           </Link>
-          <Link to='/manager/history' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+          <Link to='/manager/report' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
             <GoHistory className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
-            <div>History</div>
+            <div>Report</div>
           </Link>
         </nav>
       </div>
@@ -591,7 +593,7 @@ function GiftsRoute({password}) {
           </div>
         )}
 
-        {selected ? (
+        {selected && Object.keys(events[selected].gifts).length ? (
           <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
             <table className="table-fixed bg-white text-sm w-full">
               <thead>
@@ -620,7 +622,7 @@ function GiftsRoute({password}) {
                           <span
                             className="font-semibold text-indigo-600 hover:text-indigo-500 active:text-indigo-500 cursor-pointer select-none"
                             onClick={async () => {
-                              await post('delete_event', {password, event_id: selected, gift_id});
+                              await post('delete_gift', {password, event_id: selected, gift_id});
                               await refreshEvents();
                             }}
                           >
@@ -631,14 +633,6 @@ function GiftsRoute({password}) {
                     )
                   })
                 }
-                {Object.keys(events).length == 0 && (
-                  <tr className="border-b border-slate-200 last:border-b-0">
-                    <td className="py-4 pl-6 text-slate-600 text-left">No gifts available</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -754,6 +748,363 @@ function GiftsRoute({password}) {
   )
 }
 
+function ClaimsRoute({password}) {
+  const [events, setEvents] = useState({});
+  const [selected, setSelected] = useState();
+  useEffect(() => {
+    refreshEvents();
+    const interval = setInterval(refreshEvents, 1000);
+    return () => clearInterval(interval);
+  }, [events, selected])
+  async function refreshEvents() {
+    let resp = await get('get_events', {password});
+    const res = await resp.json();
+    for (let eventId in res) {
+      res[eventId].id = eventId;
+    }
+    setEvents(res);
+    if (!selected) setSelected(Object.keys(res)[0]);
+  }
+  return (
+    <div className='w-full max-w-4xl min-h-full flex flex-col'>
+      <div>
+        <h3 className='text-left text-2xl font-bold tracking-tight text-slate-900 py-2'>Random Gift Box Manager</h3>
+      </div>
+      <div className='border-b border-slate-200'>
+        <nav className='flex -mb-px space-x-8'>
+          <Link to='/manager/events' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoCalendar className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>Events</div>
+          </Link>
+          <Link to='/manager/gifts' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoGift className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>Gifts</div>
+          </Link>
+          <Link to='/manager/claims' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-indigo-600 font-medium border-b-2 border-indigo-500 whitespace-nowrap'>
+            <GoPerson className='w-5 h-5'/>
+            <div>Claims</div>
+          </Link>
+          <Link to='/manager/report' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoHistory className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>Report</div>
+          </Link>
+        </nav>
+      </div>
+      
+      <div className='w-full space-y-8 flex-1 inline-flex flex-col justify-center py-12 sm:py-6'>
+        {selected && (
+          <div className='space-y-4'>
+            <div>
+              <Listbox value={events[selected]} onChange={(event) => setSelected(event.id)}>
+                {({ open }) => (
+                  <>
+                    <Listbox.Label className="block text-sm font-medium leading-6 text-gray-900">Selected event:</Listbox.Label>
+                    <div className="relative mt-2">
+                      <Listbox.Button className="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6">
+                        <span className="block truncate">{`${events[selected].name} (${formatDate(events[selected].start_ms)} - ${formatDate(events[selected].end_ms)})`}</span>
+                        <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                          <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                        </span>
+                      </Listbox.Button>
+
+                      <Transition
+                        show={open}
+                        as={Fragment}
+                        leave="transition ease-in duration-100"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                      >
+                        <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                          {Object.keys(events).map((eventId) => (
+                            <Listbox.Option
+                              key={eventId}
+                              className={({active}) =>
+                                classNames(
+                                  active ? 'bg-indigo-600 text-white' : 'text-gray-900',
+                                  'relative cursor-default select-none py-2 pl-3 pr-9'
+                                )
+                              }
+                              value={events[eventId]}
+                            >
+                              {({ selected, active }) => (
+                                <>
+                                  <div className="flex items-center">
+                                    <span
+                                      className={classNames(selected ? 'font-semibold' : 'font-normal', 'block truncate')}
+                                    >
+                                      {`${events[eventId].name} (${formatDate(events[eventId].start_ms)} - ${formatDate(events[eventId].end_ms)})`}
+                                    </span>
+                                  </div>
+
+                                  {selected && (
+                                    <span
+                                      className={classNames(
+                                        active ? 'text-white' : 'text-indigo-600',
+                                        'absolute inset-y-0 right-0 flex items-center pr-4'
+                                      )}
+                                    >
+                                      <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </Listbox.Option>
+                          ))}
+                        </Listbox.Options>
+                      </Transition>
+                    </div>
+                  </>
+                )}
+              </Listbox>
+            </div>
+          </div>
+        )}
+
+        {selected && Object.values(events[selected].claims).filter(claim => !claim.claimed).length ? (
+          <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
+            <table className="table-fixed bg-white text-sm w-full">
+              <thead>
+                <tr className="border-b border-slate-300 bg-slate-50 rounded-tl-lg">
+                  <th className="text-left py-4 px-6 w-3/12">Name</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Phone</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Email</th>
+                  <th className="text-left py-4 pr-6 w-4/12">Address</th>
+                  <th className="text-left py-4 pr-6 w-1/12"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  Object.keys(events[selected].claims).map(function(claim_id, index) {
+                    let claim = events[selected].claims[claim_id];
+                    return (
+                      <tr className="border-b border-slate-200 last:border-b-0" key={index}>
+                        <td className="py-4 px-6 font-semibold truncate">{claim.first_name} {claim.last_name}</td>
+                        <td className="py-4 pr-6 text-slate-600">{claim.phone}</td>
+                        <td className="py-4 pr-6 text-slate-600 truncate">{claim.email}</td>
+                        <td className="py-4 pr-6 text-slate-600 truncate">{claim.address}, {claim.city}, {claim.state} {claim.zip_code}</td>
+                        <td className="py-4 pr-6 text-slate-600 text-right">
+                          <span
+                            className="font-semibold text-indigo-600 hover:text-indigo-500 active:text-indigo-500 cursor-pointer select-none"
+                            onClick={async () => {
+                              // alert('Coming soon!');
+                              await post('update_claim', {password, event_id: selected, claim_id});
+                              await refreshEvents();
+                            }}
+                          >
+                            Update
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })
+                }
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
+            <table className="table-fixed bg-white text-sm w-full">
+              <thead>
+                <tr className="border-b border-slate-300 bg-slate-50 rounded-tl-lg">
+                  <th className="text-left py-4 px-6 w-3/12">Name</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Phone</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Email</th>
+                  <th className="text-left py-4 pr-6 w-4/12">Address</th>
+                  <th className="text-left py-4 pr-6 w-1/12"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-slate-200 last:border-b-0">
+                  <td className="py-4 pl-6 text-slate-600 text-left">No claims available</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      </div>
+
+    </div>
+  )
+}
+
+function ReportRoute({password}) {
+  const [events, setEvents] = useState({});
+  const [selected, setSelected] = useState();
+  useEffect(() => {
+    refreshEvents();
+    const interval = setInterval(refreshEvents, 1000);
+    return () => clearInterval(interval);
+  }, [events, selected])
+  async function refreshEvents() {
+    let resp = await get('get_events', {password});
+    const res = await resp.json();
+    for (let eventId in res) {
+      res[eventId].id = eventId;
+    }
+    setEvents(res);
+    if (!selected) setSelected(Object.keys(res)[0]);
+  }
+  return (
+    <div className='w-full max-w-4xl min-h-full flex flex-col'>
+      <div>
+        <h3 className='text-left text-2xl font-bold tracking-tight text-slate-900 py-2'>Random Gift Box Manager</h3>
+      </div>
+      <div className='border-b border-slate-200'>
+        <nav className='flex -mb-px space-x-8'>
+          <Link to='/manager/events' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoCalendar className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>Events</div>
+          </Link>
+          <Link to='/manager/gifts' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoGift className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>Gifts</div>
+          </Link>
+          <Link to='/manager/claims' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-slate-500 hover:text-slate-700 font-medium border-transparent border-b-2 hover:border-slate-300 whitespace-nowrap'>
+            <GoPerson className='w-5 h-5 text-slate-400 group-hover:text-slate-500'/>
+            <div>Claims</div>
+          </Link>
+          <Link to='/manager/report' className='group flex flex-row items-center space-x-1.5 px-1 py-4 text-sm text-indigo-600 font-medium border-b-2 border-indigo-500 whitespace-nowrap'>
+            <GoHistory className='w-5 h-5'/>
+            <div>Report</div>
+          </Link>
+        </nav>
+      </div>
+      
+      <div className='w-full space-y-8 flex-1 inline-flex flex-col justify-center py-12 sm:py-6'>
+        {selected && (
+          <div className='space-y-4'>
+            <div>
+              <Listbox value={events[selected]} onChange={(event) => setSelected(event.id)}>
+                {({ open }) => (
+                  <>
+                    <Listbox.Label className="block text-sm font-medium leading-6 text-gray-900">Selected event:</Listbox.Label>
+                    <div className="relative mt-2">
+                      <Listbox.Button className="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6">
+                        <span className="block truncate">{`${events[selected].name} (${formatDate(events[selected].start_ms)} - ${formatDate(events[selected].end_ms)})`}</span>
+                        <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                          <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                        </span>
+                      </Listbox.Button>
+
+                      <Transition
+                        show={open}
+                        as={Fragment}
+                        leave="transition ease-in duration-100"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                      >
+                        <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                          {Object.keys(events).map((eventId) => (
+                            <Listbox.Option
+                              key={eventId}
+                              className={({active}) =>
+                                classNames(
+                                  active ? 'bg-indigo-600 text-white' : 'text-gray-900',
+                                  'relative cursor-default select-none py-2 pl-3 pr-9'
+                                )
+                              }
+                              value={events[eventId]}
+                            >
+                              {({ selected, active }) => (
+                                <>
+                                  <div className="flex items-center">
+                                    <span
+                                      className={classNames(selected ? 'font-semibold' : 'font-normal', 'block truncate')}
+                                    >
+                                      {`${events[eventId].name} (${formatDate(events[eventId].start_ms)} - ${formatDate(events[eventId].end_ms)})`}
+                                    </span>
+                                  </div>
+
+                                  {selected && (
+                                    <span
+                                      className={classNames(
+                                        active ? 'text-white' : 'text-indigo-600',
+                                        'absolute inset-y-0 right-0 flex items-center pr-4'
+                                      )}
+                                    >
+                                      <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </Listbox.Option>
+                          ))}
+                        </Listbox.Options>
+                      </Transition>
+                    </div>
+                  </>
+                )}
+              </Listbox>
+            </div>
+          </div>
+        )}
+
+        {selected && Object.keys(events[selected].claims).length ? (
+          <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
+            <table className="table-fixed bg-white text-sm w-full">
+              <thead>
+                <tr className="border-b border-slate-300 bg-slate-50 rounded-tl-lg">
+                  <th className="text-left py-4 px-6 w-3/12">Name</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Phone</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Email</th>
+                  <th className="text-left py-4 pr-6 w-4/12">Address</th>
+                  <th className="text-left py-4 pr-6 w-1/12">Given?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  Object.keys(events[selected].claims).map(function(claim_id, index) {
+                    let claim = events[selected].claims[claim_id];
+                    return (
+                      <tr className="border-b border-slate-200 last:border-b-0" key={index}>
+                        <td className="py-4 px-6 font-semibold truncate">{claim.first_name} {claim.last_name}</td>
+                        <td className="py-4 pr-6 text-slate-600">{claim.phone}</td>
+                        <td className="py-4 pr-6 text-slate-600 truncate">{claim.email}</td>
+                        <td className="py-4 pr-6 text-slate-600 truncate">{claim.address}, {claim.city}, {claim.state} {claim.zip_code}</td>
+                        <td className="py-4 pr-6 text-slate-600">{claim.claimed ? 'Yes' : 'No'}</td>
+                      </tr>
+                    )
+                  })
+                }
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
+            <table className="table-fixed bg-white text-sm w-full">
+              <thead>
+                <tr className="border-b border-slate-300 bg-slate-50 rounded-tl-lg">
+                  <th className="text-left py-4 px-6 w-3/12">Name</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Phone</th>
+                  <th className="text-left py-4 pr-6 w-2/12">Email</th>
+                  <th className="text-left py-4 pr-6 w-4/12">Address</th>
+                  <th className="text-left py-4 pr-6 w-1/12">Given?</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-slate-200 last:border-b-0">
+                  <td className="py-4 pl-6 text-slate-600 text-left">Nothing available</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      </div>
+
+    </div>
+  )
+}
+
 export default function App() {
   const [password, setPassword] = useState('');
   const [signedIn, setSignedIn] = useState(false);
@@ -774,6 +1125,8 @@ export default function App() {
           <Route path='/manager' element={<EventsRoute password={password}/>}/>
           <Route path='/manager/events' element={<EventsRoute password={password}/>}/>
           <Route path='/manager/gifts' element={<GiftsRoute password={password}/>}/>
+          <Route path='/manager/claims' element={<ClaimsRoute password={password}/>}/>
+          <Route path='/manager/report' element={<ReportRoute password={password}/>}/>
           <Route path='/claim' element={<ClaimRoute password={password} gift={gift}/>}/>
           <Route path='/finished' element={<FinishedPage gift={gift}/>}/>
         </Routes>
