@@ -27,6 +27,13 @@ function formatMs(date) {
   return new Date(parts[2], parts[0]-1, parts[1]).getTime();
 }
 
+function preventGoingBack() {
+  history.pushState(null, document.title, location.href);
+  addEventListener('popstate', function(event) {
+    history.pushState(null, document.title, location.href);
+  });
+}
+
 function SignInPage({onPasswordChange, onSubmit}) {
   return (
     <div className='w-full max-w-sm space-y-8'>
@@ -62,6 +69,7 @@ function GiftRoute({password, setGift}) {
   useEffect(() => {
     confetti.current = new Audio('/confetti.mp3');
     yay.current = new Audio('/yay.mp3');
+    preventGoingBack();
   }, [confetti, yay]);
   async function openBox() {
     let resp = await get('pick_gift', {password});
@@ -124,6 +132,7 @@ function ClaimRoute({password, gift}) {
     if (!gift) {
       navigate('/');
     }
+    preventGoingBack();
   }, [])
   async function claimBox() {
     let resp = await post('claim_gift', {
@@ -220,6 +229,7 @@ function ClaimRoute({password, gift}) {
 }
 
 function FinishedPage({gift}) {
+  useEffect(preventGoingBack, []);
   return (
     <div className='w-full max-w-sm space-y-8'>
       <div>
@@ -874,7 +884,7 @@ function ClaimsRoute({password}) {
               </thead>
               <tbody>
                 {
-                  Object.keys(events[selected].claims).map(function(claim_id, index) {
+                  Object.keys(events[selected].claims).filter(claim_id => !events[selected].claims[claim_id].claimed).map(function(claim_id, index) {
                     let claim = events[selected].claims[claim_id];
                     return (
                       <tr className="border-b border-slate-200 last:border-b-0" key={index}>
